@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.2.2-cudnn8-devel-ubuntu22.04
+FROM docker.1ms.run/nvidia/cuda:12.2.2-cudnn8-devel-ubuntu22.04
 LABEL authors="HumanAIGC-Engineering"
 
 ARG CONFIG_FILE=config/chat_with_minicpm.yaml
