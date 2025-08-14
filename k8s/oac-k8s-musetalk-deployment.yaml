@@ -1,0 +1,72 @@
+# --- 部署 (Deployment) ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: open-avatar-chat-deployment
+  namespace: maas
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: open-avatar-chat
+  template:
+    metadata:
+      labels:
+        app: open-avatar-chat
+    spec:
+      volumes:
+        - name: model-cache-storage
+          persistentVolumeClaim:
+            claimName: oac-model-cache-pvc
+        - name: config-volume
+          configMap:
+            name: open-avatar-chat-config
+
+      containers:
+        - name: oac-container
+          image: open-avatar-chat-musetalk:v1
+          imagePullPolicy: IfNotPresent
+          # 【修改点】根据您的建议，在此处显式声明启动命令，保证YAML的可读性和自包含性
+          command: ["uv", "run", "src/demo.py"]
+          args: [
+            "--config", "/app/config/config.yaml"
+          ]
+          env:
+            - name: NLTK_DATA
+              value: "/root/.cache/nltk_data"
+
+          volumeMounts:
+            - name: model-cache-storage
+              mountPath: "/root/open-avatar-chat/models"
+            - name: config-volume
+              mountPath: "/app/config/config.yaml"
+              subPath: "config.yaml"
+            - name: model-cache-storage
+              mountPath: /root/.cache/torch/hub/checkpoints/
+              subPath: models/musetalk/s3fd-619a316812
+
+          resources:
+            requests:
+              cpu: "4"
+              memory: 16Gi
+              nvidia.com/gpu: "1"
+            limits:
+              cpu: "8"
+              memory: 32Gi
+              nvidia.com/gpu: "1"
+---
+# --- 服务 (Service) ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: open-avatar-chat-service
+  namespace: maas
+spec:
+  type: LoadBalancer
+  selector:
+    app: open-avatar-chat
+  ports:
+    - name: oac-port
+      protocol: TCP
+      port: 8282
+      targetPort: 8282

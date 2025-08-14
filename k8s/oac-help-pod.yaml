@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: helper-pod-for-oac
+  namespace: maas
+spec:
+  containers:
+  - name: ubuntu
+    image: ubuntu:22.04
+    # 让这个Pod一直运行，直到我们手动删除它
+    command: ["/bin/bash", "-c", "sleep infinity"]
+    resources:
+      requests:
+        cpu: "2"
+        memory: "4Gi"
+      limits:
+        cpu: "4"
+        memory: "8Gi"
+    volumeMounts:
+    - name: model-cache-storage
+      mountPath: /data # 将PVC挂载到容器的/data目录
+  volumes:
+  - name: model-cache-storage
+    persistentVolumeClaim:
+      claimName: oac-model-cache-pvc
+
+
+# pod 起来后执行：
+# 将本地的模型目录，拷贝到辅助Pod的/data目录下
+# 注意：这会在/data下创建一个{{qwen-32b-int8}}子目录
+# kubectl cp ./model_repository/{{qwen-32b-int8}} helper-pod:/data/ -n maas

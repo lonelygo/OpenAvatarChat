@@ -1,0 +1,59 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: open-avatar-chat-config
+  namespace: maas
+data:
+  config.yaml: |
+    default:
+      logger:
+        log_level: "INFO"
+      service:
+        host: "0.0.0.0"
+        port: 8282
+      chat_engine:
+        model_root: "/root/open-avatar-chat/models"
+        handler_search_path:
+          - "src/handlers"
+        handler_configs:
+          RtcClient:
+            module: client/rtc_client/client_handler_rtc
+            concurrent_limit: 1
+          SileroVad:
+            module: vad/silerovad/vad_handler_silero
+            speaking_threshold: 0.5
+            start_delay: 2048
+            end_delay: 5000
+            buffer_look_back: 5000
+            speech_padding: 512
+          SenseVoice:
+            enabled: True
+            module: asr/sensevoice/asr_handler_sensevoice
+            model_name: "iic/SenseVoiceSmall"
+          CosyVoice:
+            enabled: True
+            module: tts/cosyvoice/tts_handler_cosyvoice
+            model_name: "iic/CosyVoice2-0.5B"
+            # 【修改点】路径已更新，指向PVC中预期的位置
+            ref_audio_path: "/root/open-avatar-chat/models/resource/cosyvoice/kevin_16000.mp3"
+            ref_audio_text: "这是一段测试录音，用来测试Open Voice是否好用，谢谢。"
+            sample_rate: 24000
+            process_num: 2
+          LLM_Bailian:
+            enabled: True
+            module: llm/openai_compatible/llm_handler_openai_compatible
+            model_name: "qwen3-8b-awq"
+            enable_video_input: false
+            system_prompt: "请你扮演一个 AI 助手，用简短的两三句对话来回答用户的问题，并在对话内容中加入合适的标点符号，不需要讨论标点符号相关的内容"
+            api_url: "https://maas.mubingdata.com/v1"
+            # 【修改点】将API Key统一在此处管理
+            api_key: "your-api-key-here" # <--- 请在这里替换成您的真实API Key
+          AvatarMusetalk:
+            module: avatar/musetalk/avatar_handler_musetalk
+            fps: 30
+            batch_size: 2
+            avatar_video_path: "src/handlers/avatar/musetalk/MuseTalk/data/video/sun.mp4"
+            avatar_model_dir: "/root/open-avatar-chat/models/musetalk/avatar_model"
+            force_create_avatar: false
+            debug: false
+            multi_thread_inference: true
