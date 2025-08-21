@@ -50,6 +50,15 @@ def get_module_files(config, use_uv=False):
         module_path = Path(cfg.get("module", "")).parent
         handler_dir = base_dir / "src/handlers" / module_path
 
+        # Check for submodule directory (e.g., .../cosyvoice/CosyVoice)
+        submodule_dir_name = handler_dir.name.split('_')[-1] # Heuristic to get submodule name
+        if handler_name == "CosyVoice": # Specific fix for CosyVoice
+            submodule_dir_name = "CosyVoice"
+        
+        potential_submodule_dir = handler_dir / submodule_dir_name
+        if potential_submodule_dir.is_dir():
+            handler_dir = potential_submodule_dir
+
         # Prefer pyproject.toml when using uv
         if use_uv:
             toml_file = handler_dir / "pyproject.toml"

@@ -485,7 +485,7 @@ class MuseAvatarV15:
             return ori_frame
         t2 = time.time()
         # Add protection: if res_frame is all zeros, return original frame directly
-        if np.all(res_frame == 0):
+        if np.all(res_frame == 0) or np.isnan(res_frame).any():
             # if self.debug:
             logger.warning(f"res2combined: res_frame is all zero, return ori_frame, idx={idx}")
             return ori_frame
@@ -609,7 +609,7 @@ class MuseAvatarV15:
         Generate an idle static frame (no inference, for avatar idle/no audio)
         """
         # Directly return a frame from the original frame cycle
-        frame = self.frame_list_cycle[idx % len(self.frame_list_cycle)]
+        frame = self.frame_list_cycle[0]
         return frame
 
     @torch.no_grad()

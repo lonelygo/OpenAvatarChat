@@ -110,7 +110,10 @@ class HandlerTTS(HandlerBase, ABC):
     def load(self, engine_config: ChatEngineConfigModel, handler_config: Optional[BaseModel] = None):
         if isinstance(handler_config, TTSConfig):  
             if not os.path.isabs(handler_config.model_name) and handler_config.model_name is not None:
+                # Bybass SSL verification for proxy issue
+                os.environ['HF_HUB_DISABLE_SSL_VERIFICATION'] = '1'
                 modelscope.snapshot_download(handler_config.model_name)
+                os.environ.pop('HF_HUB_DISABLE_SSL_VERIFICATION', None)
 
             self.sample_rate = handler_config.sample_rate      
             for i in range(handler_config.process_num):

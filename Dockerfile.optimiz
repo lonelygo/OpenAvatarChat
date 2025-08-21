@@ -1,0 +1,83 @@
+# Optimized Dockerfile
+
+FROM docker.1ms.run/nvidia/cuda:12.2.2-cudnn8-devel-ubuntu22.04
+LABEL authors="HumanAIGC-Engineering"
+
+ARG CONFIG_FILE=config/chat_with_sf_cosyvoice_musetalk.yaml
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV http_proxy="http://172.16.40.42:7890"
+ENV https_proxy="http://172.16.40.42:7890"
+ENV HTTP_PROXY="http://172.16.40.42:7890"
+ENV HTTPS_PROXY="http://172.16.40.42:7890"
+
+# Use Tsinghua University APT mirrors
+RUN sed -i 's/archive.ubuntu.com/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list && \
+    sed -i 's/security.ubuntu.com/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list
+
+# Update package list and install required dependencies
+RUN apt-get update && \
+    apt-get install -y software-properties-common && \
+    add-apt-repository ppa:deadsnakes/ppa && \
+    apt-get update && \
+    apt-get install -y python3.11 python3.11-dev python3.11-venv python3.11-distutils python3-pip git libgl1 libglib2.0-0 ffmpeg
+
+RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 && \
+    python3.11 -m ensurepip --upgrade && \
+    python3.11 -m pip install --upgrade pip
+
+ARG WORK_DIR=/root/open-avatar-chat
+WORKDIR $WORK_DIR
+
+# --- Dependency Installation Stage ---
+# Copy only the files required for dependency installation to leverage caching.
+
+# 1. Copy main dependency files
+COPY ./pyproject.toml $WORK_DIR/pyproject.toml
+COPY ./install.py $WORK_DIR/install.py
+
+# 2. Copy dependency files from submodules/handlers
+# Ensure the directory structure is created before copying.
+RUN mkdir -p src/handlers/tts/cosyvoice/CosyVoice src/handlers/asr/sensevoice src/handlers/vad/silerovad src/handlers/avatar/musetalk
+COPY src/handlers/tts/cosyvoice/CosyVoice/requirements.txt ./src/handlers/tts/cosyvoice/CosyVoice/requirements.txt
+COPY src/handlers/asr/sensevoice/pyproject.toml ./src/handlers/asr/sensevoice/pyproject.toml
+COPY src/handlers/vad/silerovad/pyproject.toml ./src/handlers/vad/silerovad/pyproject.toml
+COPY src/handlers/avatar/musetalk/pyproject.toml ./src/handlers/avatar/musetalk/pyproject.toml
+
+# 3. Copy the config file needed by install.py
+RUN mkdir -p config
+COPY $CONFIG_FILE $WORK_DIR/$CONFIG_FILE
+
+# 4. Copy third_party directory which might be needed by installation
+COPY ./src/third_party $WORK_DIR/src/third_party
+
+# 5. Install all dependencies
+RUN pip install uv && \
+    uv venv --python 3.11.11 && \
+    uv sync --no-install-workspace
+
+RUN uv run install.py \
+    --config $WORK_DIR/$CONFIG_FILE \
+    --uv \
+    --skip-core
+
+# Special handling for mmcv
+RUN uv pip uninstall mmcv
+RUN uv pip install mmcv==2.2.0 -f https://download.openmmlab.com/mmcv/dist/cu121/torch2.4/index.html --trusted-host download.openmmlab.com
+
+
+# --- Application Code Stage ---
+# Now that dependencies are installed and cached, copy the rest of the code.
+
+COPY . $WORK_DIR/
+
+# Execute pre/post config installation scripts which might depend on the full codebase
+RUN chmod +x $WORK_DIR/scripts/pre_config_install.sh && \
+    $WORK_DIR/scripts/pre_config_install.sh --config $WORK_DIR/$CONFIG_FILE
+
+RUN chmod +x $WORK_DIR/scripts/post_config_install.sh && \
+    $WORK_DIR/scripts/post_config_install.sh --config $WORK_DIR/$CONFIG_FILE
+
+
+WORKDIR $WORK_DIR
+ENTRYPOINT ["uv", "run", "src/demo.py"]

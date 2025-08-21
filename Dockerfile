@@ -4,6 +4,10 @@ LABEL authors="HumanAIGC-Engineering"
 ARG CONFIG_FILE=config/chat_with_minicpm.yaml
 
 ENV DEBIAN_FRONTEND=noninteractive
+ENV http_proxy="http://172.16.40.42:7890"
+ENV https_proxy="http://172.16.40.42:7890"
+ENV HTTP_PROXY="http://172.16.40.42:7890"
+ENV HTTPS_PROXY="http://172.16.40.42:7890"
 
 # Use Tsinghua University APT mirrors
 RUN sed -i 's/archive.ubuntu.com/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list && \
@@ -31,6 +35,10 @@ RUN pip install uv && \
     uv venv --python 3.11.11 && \
     uv sync --no-install-workspace
 
+# 装ffpeg
+RUN apt-get update && \
+    apt-get install -y ffmpeg
+
 ADD ./src $WORK_DIR/src
 
 # Copy script files (must be copied before installing config dependencies)
@@ -48,6 +56,11 @@ RUN uv run install.py \
     --uv \
     --skip-core
 
+# uv默认安装的mmcv在实际运行时可能会报错“No module named ‘mmcv._ext’”参考MMCV-FAQ，解决方法是
+# https://github.com/HumanAIGC-Engineering/OpenAvatarChat/blob/main/README.md#musetalk%E6%95%B0%E5%AD%97%E4%BA%BAhandler
+RUN uv pip uninstall mmcv
+RUN uv pip install mmcv==2.2.0 -f https://download.openmmlab.com/mmcv/dist/cu121/torch2.4/index.html --trusted-host download.openmmlab.com
+
 # Execute post-config installation script
 RUN chmod +x $WORK_DIR/scripts/post_config_install.sh && \
     $WORK_DIR/scripts/post_config_install.sh --config /tmp/build_config.yaml && \
@@ -55,6 +68,11 @@ RUN chmod +x $WORK_DIR/scripts/post_config_install.sh && \
 
 ADD ./resource $WORK_DIR/resource
 ADD ./.env* $WORK_DIR/
+
+ENV http_proxy=""
+ENV https_proxy=""
+ENV HTTP_PROXY=""
+ENV HTTPS_PROXY=""
 
 WORKDIR $WORK_DIR
 ENTRYPOINT ["uv", "run", "src/demo.py"]

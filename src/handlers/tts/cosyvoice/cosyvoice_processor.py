@@ -66,13 +66,15 @@ class TTSCosyVoiceProcessor(spawn_context.Process):
                     raise TypeError('no valid model_type!')
             self.model.sample_rate = self.sample_rate
             if self.ref_audio_path:
-                self.ref_audio_buffer = load_wav(self.ref_audio_path, self.sample_rate)
+                self.ref_audio_buffer = load_wav(self.ref_audio_path, 16000)
                 self.ref_audio_text = self.ref_audio_text
+                # Register the speaker embedding before using it
+                self.model.add_zero_shot_spk(self.ref_audio_text, self.ref_audio_buffer, 'default_spk')
             init_text = '欢迎来到中国2025'
             response = None
             if self.ref_audio_buffer is not None:
                 response = self.model.inference_zero_shot(
-                    init_text, self.ref_audio_text, self.ref_audio_buffer, True)
+                    init_text, self.ref_audio_text, self.ref_audio_buffer, zero_shot_spk_id='default_spk', stream=True)
             elif self.spk_id:
                 response = self.model.inference_sft(init_text, self.spk_id)
             else:
@@ -141,7 +143,7 @@ class TTSCosyVoiceProcessor(spawn_context.Process):
                 if self.model:
                     if self.ref_audio_buffer is not None:
                         response = self.model.inference_zero_shot(
-                            input_text, self.ref_audio_text, self.ref_audio_buffer, True)
+                            input_text, self.ref_audio_text, self.ref_audio_buffer, zero_shot_spk_id='default_spk', stream=True)
                     elif self.spk_id:
                         response = self.model.inference_sft(input_text, self.spk_id, True)
                     else:

@@ -52,7 +52,7 @@ data:
             module: avatar/musetalk/avatar_handler_musetalk
             fps: 30
             batch_size: 2
-            avatar_video_path: "src/handlers/avatar/musetalk/MuseTalk/data/video/sun.mp4"
+            avatar_video_path: "src/handlers/avatar/musetalk/MuseTalk/data/video/mubing01.mp4"
             avatar_model_dir: "/root/open-avatar-chat/models/musetalk/avatar_model"
             force_create_avatar: false
             debug: false
